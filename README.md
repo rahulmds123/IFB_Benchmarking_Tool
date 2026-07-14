@@ -135,8 +135,19 @@ logic inside the components that call it — nothing else assumes a
 particular wire format beyond what `client.js` already normalizes.
 
 ## Project structure
-
 ```
+#below is the backend strcuture
+app/bom.py
+  services/
+ __init__.py
+Report_pdf.py
+bom_services.py
+Ac_bom_services.py
+llm_analysis.py
+
+########
+#belwo is the frontend structure
+frontend/
 src/
   api/client.js                    — axios calls matching every backend endpoint above
   components/
@@ -153,14 +164,9 @@ src/
   App.jsx                           — step-wizard state machine (upload → normalizing → complete → workspace) + top nav
   index.css                         — Tailwind layers + light theme base
 tailwind.config.js                  — brand red + standard slate/green/red palette, fonts
+#dataset folder should be seperate not a subset of the folders above 
 ```
 
-### Superseded — safe to delete
-
-These are no longer imported by anything and were replaced during the
-wizard rebuild: `ComponentPicker.jsx`, `ComparisonTable.jsx`,
-`InsightsPanel.jsx` (the old dark-theme version), `AssemblySelector.jsx`,
-`ViewTabs.jsx`, `TopComponentsRanking.jsx`.
 
 ## Design notes
 

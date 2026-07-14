@@ -31,6 +31,7 @@ export default function AssemblyWorkspace({ jobId, companyLabels, assemblies, as
   const [error, setError] = useState(null)
 
   const [selectedComponent, setSelectedComponent] = useState(null)
+  const [selectedComponents, setSelectedComponents] = useState([])
 
   const companies = matrixRows.length > 0 ? Object.keys(matrixRows[0].presence) : []
 
@@ -40,13 +41,14 @@ export default function AssemblyWorkspace({ jobId, companyLabels, assemblies, as
     if (!isAc) return
     const options = assembliesByUnit[unit] || []
     setSelectedAssembly(options[0] ?? null)
-  }, [unit]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [unit])
 
   useEffect(() => {
     if (!selectedAssembly) return
     setIsLoadingMatrix(true)
     setBulkResult(null)
     setImportantOnly(false)
+    setSelectedComponents([])
     setError(null)
     fetchPresenceMatrix(jobId, selectedAssembly, apiUnit)
       .then(setMatrixRows)
@@ -81,11 +83,44 @@ export default function AssemblyWorkspace({ jobId, companyLabels, assemblies, as
     }
   }
 
+  async function handleAnalyzeSelected(components) {
+    if (components.length === 0) return
+    setIsAnalyzing(true)
+    setError(null)
+    try {
+      const data = await fetchMultiComponent(jobId, components, analysisMode)
+      setBulkResult(data.llmInsight)
+      setSelectedComponents([])
+    } catch (err) {
+      setError(err.message || 'Could not run the analysis.')
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
+
+  function handleMultiSelect(components) {
+    if (Array.isArray(components) && components.length > 0) {
+      const allSelected = components.every(c => selectedComponents.includes(c))
+      if (allSelected && components.length === selectedComponents.length) {
+        handleAnalyzeSelected(components)
+        return
+      }
+      setSelectedComponents(components)
+    } else {
+      setSelectedComponents([])
+    }
+  }
+
   async function handleDownloadReport() {
+    const comps = selectedComponents.length > 0 ? selectedComponents : importantNames
+    if (comps.length === 0) {
+      setError('No components selected for report.')
+      return
+    }
     setIsDownloading(true)
     setError(null)
     try {
-      await downloadReportPdf(jobId, selectedAssembly, importantNames.length || 5, analysisMode, reportScope, apiUnit)
+      await downloadReportPdf(jobId, selectedAssembly, comps.length || 5, analysisMode, reportScope, apiUnit)
     } catch (err) {
       let message = 'Could not generate the report.'
       if (err.response?.data instanceof Blob) {
@@ -183,7 +218,10 @@ export default function AssemblyWorkspace({ jobId, companyLabels, assemblies, as
           <span
             role="switch"
             aria-checked={importantOnly}
-            onClick={() => setImportantOnly((v) => !v)}
+            onClick={() => {
+              setImportantOnly((v) => !v)
+              setSelectedComponents([])
+            }}
             className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${
               importantOnly ? 'bg-brand' : 'bg-slate-200'
             }`}
@@ -239,11 +277,14 @@ export default function AssemblyWorkspace({ jobId, companyLabels, assemblies, as
           </select>
           <button
             onClick={handleDownloadReport}
-            disabled={isDownloading || !selectedAssembly}
+            disabled={isDownloading || !selectedAssembly || (selectedComponents.length === 0 && importantNames.length === 0)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium border border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-colors disabled:opacity-50"
           >
             <i className="ti ti-file-download text-[15px]" aria-hidden="true" />
-            {isDownloading ? 'Building…' : 'Download PDF report'}
+            {isDownloading ? 'Building…' : 
+              selectedComponents.length > 0 
+                ? `Report for ${selectedComponents.length} selected` 
+                : 'Download PDF report'}
           </button>
         </div>
       </div>
@@ -274,7 +315,13 @@ export default function AssemblyWorkspace({ jobId, companyLabels, assemblies, as
       <p className="text-[13px] text-slate-400 mb-3">
         {importantOnly ? 'Important components in this assembly' : 'All components in this assembly'}
       </p>
-      <ComponentsGrid rows={visibleRows} companies={companies} onSelect={setSelectedComponent} />
+      <ComponentsGrid 
+        rows={visibleRows} 
+        companies={companies} 
+        onSelect={setSelectedComponent}
+        onMultiSelect={handleMultiSelect}
+        selectedComponents={selectedComponents}
+      />
 
       {selectedComponent && (
         <ComponentDetailModal

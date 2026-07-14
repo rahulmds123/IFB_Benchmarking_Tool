@@ -37,6 +37,21 @@ ACCENT_RUST = colors.HexColor("#9f1d1d")
 GRID = colors.HexColor("#d8dce3")
 MUTED = colors.HexColor("#5b6472")
 
+# Abbreviated spec column headers for PDF display
+SPEC_COL_ABBREVIATIONS = {
+    "Manufacturing Process": "Mfg Process",
+    "Position (Assembled where)": "Position",
+    "Dimensions/Specs(mm)": "Dimensions",
+    "Thickness (mm)": "Thickness",
+    "Material": "Material",
+    "Colour": "Colour",
+    "Weight (Grams/piece)": "Weight (g)",
+    "Number of Part": "Part #",
+    "Total Weight": "Total Wt",
+    "Total Assembly weight": "Assembly Wt",
+    "Characteristic (eg-special point)": "Characteristic",
+}
+
 
 def _styles():
     base = getSampleStyleSheet()
@@ -60,10 +75,10 @@ def _styles():
             alignment=TA_LEFT,
         ),
         "cell": ParagraphStyle(
-            "Cell", parent=base["Normal"], fontSize=8, leading=10.5, textColor=INK,
+            "Cell", parent=base["Normal"], fontSize=7, leading=8.5, textColor=INK,
         ),
         "cell_muted": ParagraphStyle(
-            "CellMuted", parent=base["Normal"], fontSize=8, leading=10.5, textColor=MUTED,
+            "CellMuted", parent=base["Normal"], fontSize=7, leading=8.5, textColor=MUTED,
         ),
         "label": ParagraphStyle(
             "Label", parent=base["Normal"], fontSize=7.5, textColor=MUTED,
@@ -92,6 +107,11 @@ def _standing_hex(standing):
     }.get(standing, "#5b6472")
 
 
+def _shorten_header(col_name):
+    """Abbreviate long spec column names for PDF display."""
+    return SPEC_COL_ABBREVIATIONS.get(col_name, col_name)
+
+
 # ---------------------------------------------------------------------------
 # Section builders — each returns a list of flowables
 # ---------------------------------------------------------------------------
@@ -116,18 +136,35 @@ def _presence_matrix_section(presence_rows, companies, styles):
 
     flow = [Paragraph("Presence Matrix", styles["section"])]
 
+    # Available width: A4 is 210mm, margins are 15mm each = 180mm usable
+    available_width = 180 * mm
+    
+    # Company columns: allocate based on number of companies (max 5)
+    component_col_width = 45 * mm
+    remaining = available_width - component_col_width
+    company_col_width = remaining / len(companies) if companies else 25 * mm
+    
+    min_company_width = 22 * mm
+    if company_col_width < min_company_width:
+        company_col_width = min_company_width
+        total_width = component_col_width + (len(companies) * company_col_width)
+        if total_width > available_width:
+            component_col_width = available_width - (len(companies) * company_col_width)
+
     header = ["Component"] + companies
     data = [header]
     for row in presence_rows:
-        line = [Paragraph(str(row.get("Component", "")), styles["cell"])]
+        comp_name = str(row.get("Component", ""))
+        comp_para = Paragraph(comp_name, styles["cell"])
+        line = [comp_para]
         for company in companies:
             present = row.get(company)
-            mark = "Present" if present in (1, True, "1") else "Missing"
+            mark = "✓" if present in (1, True, "1") else "✗"
             style = styles["cell"] if present in (1, True, "1") else styles["cell_muted"]
             line.append(Paragraph(mark, style))
         data.append(line)
 
-    col_widths = [55 * mm] + [(160 - 55) / max(len(companies), 1) * mm for _ in companies]
+    col_widths = [component_col_width] + [company_col_width for _ in companies]
     table = Table(data, colWidths=col_widths, repeatRows=1)
     table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), INK),
@@ -136,9 +173,12 @@ def _presence_matrix_section(presence_rows, companies, styles):
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ("GRID", (0, 0), (-1, -1), 0.5, GRID),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ALIGN", (1, 0), (-1, -1), "CENTER"),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f5f6f8")]),
         ("TOPPADDING", (0, 0), (-1, -1), 4),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
     ]))
     flow.append(table)
     return flow
@@ -151,13 +191,26 @@ def _ranking_section(ranking, styles):
     flow = [Paragraph("Top Components by Weight", styles["section"])]
     companies = sorted({c for r in ranking for c in r.get("weights_by_company", {})})
 
-    header = ["#", "Component", "Avg weight (g)"] + [f"{c} (g)" for c in companies]
+    available_width = 180 * mm
+    rank_col = 10 * mm
+    comp_col = 45 * mm
+    avg_col = 28 * mm
+    remaining = available_width - rank_col - comp_col - avg_col
+    company_col_width = remaining / len(companies) if companies else 22 * mm
+    
+    min_company_width = 20 * mm
+    if company_col_width < min_company_width:
+        company_col_width = min_company_width
+
+    header = ["#", "Component", "Avg (g)"] + [f"{c}" for c in companies]
     data = [header]
     for i, r in enumerate(ranking, start=1):
         weights = r.get("weights_by_company", {})
+        comp_name = str(r.get("component", ""))
+        comp_para = Paragraph(comp_name, styles["cell"])
         row = [
             str(i),
-            Paragraph(str(r.get("component", "")), styles["cell"]),
+            comp_para,
             f"{r.get('avg_weight', ''):.1f}" if isinstance(r.get("avg_weight"), (int, float)) else "-",
         ]
         for c in companies:
@@ -165,13 +218,12 @@ def _ranking_section(ranking, styles):
             row.append(f"{v:.1f}" if isinstance(v, (int, float)) else "-")
         data.append(row)
 
-    n_extra_cols = len(companies)
-    col_widths = [10 * mm, 45 * mm, 28 * mm] + [(160 - 83) / max(n_extra_cols, 1) * mm for _ in companies]
+    col_widths = [rank_col, comp_col, avg_col] + [company_col_width for _ in companies]
     table = Table(data, colWidths=col_widths, repeatRows=1)
     table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), INK),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("FONTSIZE", (0, 0), (-1, -1), 7.5),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ("GRID", (0, 0), (-1, -1), 0.5, GRID),
         ("ALIGN", (2, 1), (-1, -1), "RIGHT"),
@@ -179,6 +231,8 @@ def _ranking_section(ranking, styles):
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f5f6f8")]),
         ("TOPPADDING", (0, 0), (-1, -1), 4),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
     ]))
     flow.append(table)
     return flow
@@ -190,7 +244,7 @@ def _specs_section(specs_rows, styles):
 
     flow = [Paragraph("Component Specifications", styles["section"])]
 
-    # group rows by Component, preserving first-seen order
+    # group rows by Component
     grouped = {}
     for row in specs_rows:
         comp = row.get("Component", "")
@@ -201,29 +255,54 @@ def _specs_section(specs_rows, styles):
         if k not in ("Company", "Component")
     ]
 
+    # Calculate column widths
+    available_width = 180 * mm
+    company_col_width = 28 * mm
+    remaining = available_width - company_col_width
+    spec_col_width = remaining / len(spec_cols) if spec_cols else 25 * mm
+    
+    # Ensure minimum spec column width
+    min_spec_width = 18 * mm
+    if spec_col_width < min_spec_width:
+        spec_col_width = min_spec_width
+        total_width = company_col_width + (len(spec_cols) * spec_col_width)
+        if total_width > available_width:
+            company_col_width = available_width - (len(spec_cols) * spec_col_width)
+
     for comp, rows in grouped.items():
         block = [Paragraph(comp, styles["component_name"])]
-        header = ["Company"] + spec_cols
+        
+        # Use abbreviated headers for spec columns
+        header = ["Company"] + [_shorten_header(col) for col in spec_cols]
         data = [header]
+        
         for row in rows:
-            line = [Paragraph(str(row.get("Company", "")), styles["cell"])]
+            company_name = str(row.get("Company", ""))
+            company_para = Paragraph(company_name, styles["cell"])
+            line = [company_para]
             for col in spec_cols:
                 val = row.get(col)
+                val_str = str(val) if not _is_na(val) else "—"
+                # Truncate long values
+                if len(val_str) > 35:
+                    val_str = val_str[:32] + "..."
                 style = styles["cell_muted"] if _is_na(val) else styles["cell"]
-                line.append(Paragraph("—" if _is_na(val) else str(val), style))
+                line.append(Paragraph(val_str, style))
             data.append(line)
 
-        col_widths = [28 * mm] + [(170 - 28) / max(len(spec_cols), 1) * mm for _ in spec_cols]
+        col_widths = [company_col_width] + [spec_col_width for _ in spec_cols]
         table = Table(data, colWidths=col_widths, repeatRows=1)
         table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#eef0f3")),
             ("TEXTCOLOR", (0, 0), (-1, 0), INK),
-            ("FONTSIZE", (0, 0), (-1, -1), 7.5),
+            ("FONTSIZE", (0, 0), (-1, -1), 6.5),
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
             ("GRID", (0, 0), (-1, -1), 0.5, GRID),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("TOPPADDING", (0, 0), (-1, -1), 3),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ("LEFTPADDING", (0, 0), (-1, -1), 3),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 3),
         ]))
         block.append(table)
         flow.append(KeepTogether(block))
@@ -390,16 +469,14 @@ def build_bom_report_pdf(
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
-        topMargin=18 * mm,
-        bottomMargin=16 * mm,
-        leftMargin=16 * mm,
-        rightMargin=16 * mm,
+        topMargin=15 * mm,
+        bottomMargin=15 * mm,
+        leftMargin=15 * mm,
+        rightMargin=15 * mm,
         title=f"{assembly} BOM Benchmarking Report",
     )
 
-    # Build each optional section independently, then only insert page
-    # breaks between sections that actually exist — otherwise a
-    # "matrix only" report would still carry two blank trailing pages.
+    # Build each optional section independently
     sections = []
 
     if presence_rows:
@@ -409,9 +486,6 @@ def build_bom_report_pdf(
             block += _ranking_section(ranking, styles)
         sections.append(block)
     elif ranking:
-        # ranking without a presence matrix (shouldn't normally happen given
-        # how the endpoint calls this, but handled so the function is safe
-        # to call directly with any combination of arguments)
         sections.append(list(_ranking_section(ranking, styles)))
 
     if specs_rows:

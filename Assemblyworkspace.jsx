@@ -214,6 +214,7 @@ export default function AssemblyWorkspace({ jobId, companyLabels, assemblies, as
           </select>
         )}
 
+        {/* FIXED TOGGLE SWITCH */}
         <label className="flex items-center gap-2.5 mt-4 cursor-pointer w-fit">
           <span
             role="switch"
@@ -222,13 +223,13 @@ export default function AssemblyWorkspace({ jobId, companyLabels, assemblies, as
               setImportantOnly((v) => !v)
               setSelectedComponents([])
             }}
-            className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${
+            className={`w-9 h-5 rounded-full transition-colors duration-200 relative shrink-0 cursor-pointer ${
               importantOnly ? 'bg-brand' : 'bg-slate-200'
             }`}
           >
             <span
-              className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
-                importantOnly ? 'translate-x-4.5 left-0.5' : 'left-0.5'
+              className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-200 ${
+                importantOnly ? 'left-[18px]' : 'left-0.5'
               }`}
             />
           </span>

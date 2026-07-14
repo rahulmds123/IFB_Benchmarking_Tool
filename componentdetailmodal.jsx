@@ -11,24 +11,23 @@ export default function ComponentDetailModal({ jobId, componentName, assemblyNam
   const [ruleInsights, setRuleInsights] = useState([])
   const [llmInsight, setLlmInsight] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [showAnalysis, setShowAnalysis] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
     let cancelled = false
     setIsLoading(true)
     setError(null)
+    setShowAnalysis(false)
+    setLlmInsight(null)
 
-    // single component -> backend resolves this to its full "component"
-    // mode prompt regardless of what mode string we'd pass, so "detailed"
-    // here just means "the full report", matching the reference's modal
-    // (which always shows the full analysis, no quick/detailed toggle).
     fetchMultiComponent(jobId, [componentName], 'detailed')
       .then((data) => {
         if (cancelled) return
         const group = data.groups.find((g) => g.component === componentName)
         setSpecs(group?.rows || [])
         setRuleInsights(data.insightGroups[componentName.toLowerCase()] || [])
-        setLlmInsight(data.llmInsight || null)
       })
       .catch((err) => {
         if (!cancelled) setError(err.message || 'Could not load component details.')
@@ -41,6 +40,21 @@ export default function ComponentDetailModal({ jobId, componentName, assemblyNam
       cancelled = true
     }
   }, [jobId, componentName])
+
+  async function handleLoadAnalysis() {
+    if (isAnalyzing || showAnalysis) return
+    setIsAnalyzing(true)
+    setError(null)
+    try {
+      const data = await fetchMultiComponent(jobId, [componentName], 'detailed')
+      setLlmInsight(data.llmInsight || null)
+      setShowAnalysis(true)
+    } catch (err) {
+      setError(err.message || 'Could not load analysis.')
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
 
   const specColumns = specs.length > 0 ? Object.keys(specs[0]).filter((k) => k !== 'company') : []
 
@@ -138,14 +152,35 @@ export default function ComponentDetailModal({ jobId, componentName, assemblyNam
               )}
 
               <div className="border border-slate-200 rounded-lg overflow-hidden">
-                <div className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-900">
-                  <i className="ti ti-sparkles text-white text-[14px]" aria-hidden="true" />
-                  <p className="text-[11px] font-semibold text-white uppercase tracking-wide">
-                    AI insights · Engineering analysis
-                  </p>
+                <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200">
+                  <div className="flex items-center gap-1.5">
+                    <i className="ti ti-sparkles text-slate-400 text-[14px]" aria-hidden="true" />
+                    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                      AI insights · Engineering analysis
+                    </p>
+                  </div>
+                  {!showAnalysis && !isAnalyzing && (
+                    <button
+                      onClick={handleLoadAnalysis}
+                      className="text-[12px] font-medium text-brand hover:text-brand-hover"
+                    >
+                      Analyze
+                    </button>
+                  )}
+                  {isAnalyzing && (
+                    <span className="text-[12px] text-slate-400">Loading…</span>
+                  )}
                 </div>
                 <div className="p-4">
-                  <AnalysisResultPanel llmInsight={llmInsight} />
+                  {showAnalysis && llmInsight ? (
+                    <AnalysisResultPanel llmInsight={llmInsight} />
+                  ) : isAnalyzing ? (
+                    <p className="text-[13px] text-slate-400 text-center py-4">Analyzing component…</p>
+                  ) : (
+                    <p className="text-[13px] text-slate-400 text-center py-4">
+                      Click "Analyze" to generate AI insights for this component.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

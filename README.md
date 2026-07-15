@@ -301,5 +301,4 @@ model without the label becoming inaccurate.
 - **No auth or persistence** — see Deployment notes above.
 - **No mobile layout pass** — the workspace assumes a reasonably wide viewport.
 - **No charts** — weight comparisons are numbers/badges, not visualized.
-- **Component detail modal always uses "Detailed" depth** — no quick-mode option inside the modal itself, by design.
 - **AC dimension sub-column parsing is lightly tested** — verified against synthetic data shaped to match the original script's logic, not yet against a real IFB AC BOM file. Worth a real-file smoke test before production use.

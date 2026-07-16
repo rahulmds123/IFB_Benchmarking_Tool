@@ -302,3 +302,4 @@ model without the label becoming inaccurate.
 - **No mobile layout pass** — the workspace assumes a reasonably wide viewport.
 - **No charts** — weight comparisons are numbers/badges, not visualized.
 - **AC dimension sub-column parsing is lightly tested** — verified against synthetic data shaped to match the original script's logic, not yet against a real IFB AC BOM file. Worth a real-file smoke test before production use.
+when on the anylsis page if you want to print the reports of selected compoents,select the compoennts and where u can see report selected for 2,3 etc directly press that to print the report dont press any analyse buttons(saves tokens).

@@ -293,6 +293,7 @@ dense/monospace — that's the one place tabular density is the right call.
 The AI insight panel is labeled "AI insights · Engineering analysis," not
 tied to a specific model name, since `LLM_MODEL` can point at a different
 model without the label becoming inaccurate.
+when on the analysis page if you want to print the reports of selected components,select the components and where you  can see report selected for 2,3 etc directly press that to print the report dont press any analyse buttons(saves tokens).
 
 ---
 
@@ -302,4 +303,3 @@ model without the label becoming inaccurate.
 - **No mobile layout pass** — the workspace assumes a reasonably wide viewport.
 - **No charts** — weight comparisons are numbers/badges, not visualized.
 - **AC dimension sub-column parsing is lightly tested** — verified against synthetic data shaped to match the original script's logic, not yet against a real IFB AC BOM file. Worth a real-file smoke test before production use.
-when on the anylsis page if you want to print the reports of selected compoents,select the compoennts and where u can see report selected for 2,3 etc directly press that to print the report dont press any analyse buttons(saves tokens).

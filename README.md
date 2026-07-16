@@ -308,14 +308,11 @@ when on the analysis page if you want to print the reports of selected component
 fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
 python-multipart>=0.0.9   # required for File(...)/Form(...) uploads in /upload
- 
-# --- Data handling ---
+Data handling
 pandas>=2.2.0
 openpyxl>=3.1.2           # reading/writing .xlsx, red-font NA highlighting
- 
-# --- LLM (OpenRouter via the OpenAI-compatible client) ---
+ LLM (OpenRouter via the OpenAI-compatible client) 
 openai>=1.30.0
- 
-# --- PDF report generation ---
+ PDF report generatio
 reportlab>=4.1.0
  

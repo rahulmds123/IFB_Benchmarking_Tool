@@ -159,8 +159,9 @@ def download_report(
     assembly: str,
     top_n: int = 5,
     analysis_mode: str = "quick",
-    report_scope: str = "full",  # "full" | "specs" | "matrix"
-    unit: str = None,  # "IDU" | "ODU" — AC jobs only, no-op for washing machine
+    report_scope: str = "full",
+    unit: str = None,
+    component_names: str = None,  # ← Added this parameter
 ):
     if job_id not in JOB_STORE:
         return JSONResponse(status_code=404, content={"error": "Job not found"})
@@ -183,7 +184,7 @@ def download_report(
 
     presence_rows = None
     ranked = None
-    component_names = []
+    component_names_list = []
     multi_df = None
     llm_insight = None
 
@@ -197,28 +198,42 @@ def download_report(
     # "specs" and "full" both need the top-N ranking + spec rows; "matrix"
     # doesn't — no point computing weight rankings for a matrix-only report.
     if report_scope in ("full", "specs"):
-        ranked = get_top_weighted_components(assembly_data, top_n=top_n)
-        if not ranked:
-            return JSONResponse(
-                status_code=400,
-                content={
-                    "error": "No component has valid weight data present across every company "
-                             "for this assembly — nothing to build a report from."
-                },
-            )
-        component_names = [c["component"] for c in ranked]
+        # Check if specific component names were provided
+        if component_names:
+            # Use the provided component names
+            component_names_list = component_names.split(',')
+            # Build spec rows for these specific components
+            all_dfs = []
+            for comp in component_names_list:
+                df = compare_component_specs(data, comp, spec_cols=spec_cols)
+                df["Component"] = comp
+                all_dfs.append(df)
+            multi_df = pd.concat(all_dfs, ignore_index=True).fillna("NA")
+            # Build a fake ranking for the report display
+            ranked = [{"component": comp, "avg_weight": 0, "weights_by_company": {}} for comp in component_names_list]
+        else:
+            # Use top-N approach
+            ranked = get_top_weighted_components(assembly_data, top_n=top_n)
+            if not ranked:
+                return JSONResponse(
+                    status_code=400,
+                    content={
+                        "error": "No component has valid weight data present across every company "
+                                 "for this assembly — nothing to build a report from."
+                    },
+                )
+            component_names_list = [c["component"] for c in ranked]
 
-        all_dfs = []
-        for comp in component_names:
-            df = compare_component_specs(data, comp, spec_cols=spec_cols)
-            df["Component"] = comp
-            all_dfs.append(df)
-        multi_df = pd.concat(all_dfs, ignore_index=True).fillna("NA")
+            all_dfs = []
+            for comp in component_names_list:
+                df = compare_component_specs(data, comp, spec_cols=spec_cols)
+                df["Component"] = comp
+                all_dfs.append(df)
+            multi_df = pd.concat(all_dfs, ignore_index=True).fillna("NA")
 
-    # Only the "full" scope actually needs the LLM — this is where the
-    # token/cost savings happen for specs-only and matrix-only downloads.
+    # Only the "full" scope actually needs the LLM
     if report_scope == "full":
-        llm_mode = "quick" if analysis_mode == "quick" else ("component" if len(component_names) == 1 else "detailed")
+        llm_mode = "quick" if analysis_mode == "quick" else ("component" if len(component_names_list) == 1 else "detailed")
         try:
             llm_insight = run_llm_analysis(multi_df, mode=llm_mode)
         except Exception as e:
@@ -237,7 +252,7 @@ def download_report(
         ranking=ranked,
         specs_rows=multi_df.to_dict(orient="records") if multi_df is not None else None,
         llm_insight=llm_insight,
-        component_names=component_names or None,
+        component_names=component_names_list or None,
     )
 
     safe_name = assembly.replace(" ", "_").replace("/", "-")

@@ -208,4 +208,41 @@ export async function downloadReportPdf(jobId, assemblyName, topN = 5, analysisM
   window.URL.revokeObjectURL(url)
 }
 
+/**
+ * Download a PDF report for SPECIFIC components (not just top-N).
+ * This passes component names to the backend to generate a report for exactly
+ * the selected components.
+ * @param {string} jobId
+ * @param {string} assemblyName
+ * @param {string[]} componentNames - List of specific components to include
+ * @param {'quick'|'detailed'} [analysisMode]
+ * @param {'full'|'specs'|'matrix'} [reportScope]
+ * @param {string} [unit]
+ */
+export async function downloadReportForComponents(jobId, assemblyName, componentNames, analysisMode = 'quick', reportScope = 'full', unit) {
+  const params = { 
+    assembly: assemblyName, 
+    top_n: componentNames.length, 
+    analysis_mode: analysisMode, 
+    report_scope: reportScope,
+    component_names: componentNames.join(',')  // Pass component names as comma-separated
+  }
+  if (unit) params.unit = unit
+  
+  const response = await client.get(`/job/${jobId}/report`, {
+    params,
+    responseType: 'blob',
+  })
+
+  const url = window.URL.createObjectURL(response.data)
+  const link = document.createElement('a')
+  link.href = url
+  const safeName = assemblyName.replace(/\s+/g, '_').replace(/\//g, '-')
+  link.download = `${safeName}_${reportScope}_report.pdf`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(url)
+}
+
 export default client

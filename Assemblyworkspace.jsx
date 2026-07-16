@@ -4,6 +4,7 @@ import {
   fetchTopComponents,
   fetchMultiComponent,
   downloadReportPdf,
+  downloadReportForComponents,
 } from '../api/client'
 import PresenceMatrix from './PresenceMatrix'
 import ComponentsGrid from './ComponentsGrid'
@@ -120,7 +121,13 @@ export default function AssemblyWorkspace({ jobId, companyLabels, assemblies, as
     setIsDownloading(true)
     setError(null)
     try {
-      await downloadReportPdf(jobId, selectedAssembly, comps.length || 5, analysisMode, reportScope, apiUnit)
+      if (selectedComponents.length > 0) {
+        // Use the new function for specific components
+        await downloadReportForComponents(jobId, selectedAssembly, comps, analysisMode, reportScope, apiUnit)
+      } else {
+        // Use the original function for important components (top-N)
+        await downloadReportPdf(jobId, selectedAssembly, comps.length || 5, analysisMode, reportScope, apiUnit)
+      }
     } catch (err) {
       let message = 'Could not generate the report.'
       if (err.response?.data instanceof Blob) {
@@ -214,7 +221,6 @@ export default function AssemblyWorkspace({ jobId, companyLabels, assemblies, as
           </select>
         )}
 
-        {/* FIXED TOGGLE SWITCH */}
         <label className="flex items-center gap-2.5 mt-4 cursor-pointer w-fit">
           <span
             role="switch"

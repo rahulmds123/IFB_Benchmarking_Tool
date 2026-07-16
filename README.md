@@ -303,16 +303,4 @@ when on the analysis page if you want to print the reports of selected component
 - **No mobile layout pass** — the workspace assumes a reasonably wide viewport.
 - **No charts** — weight comparisons are numbers/badges, not visualized.
 - **AC dimension sub-column parsing is lightly tested** — verified against synthetic data shaped to match the original script's logic, not yet against a real IFB AC BOM file. Worth a real-file smoke test before production use.
-##13. Requirements
- --- Web framework ---
-fastapi>=0.110.0
-uvicorn[standard]>=0.29.0
-python-multipart>=0.0.9   # required for File(...)/Form(...) uploads in /upload
-Data handling
-pandas>=2.2.0
-openpyxl>=3.1.2           # reading/writing .xlsx, red-font NA highlighting
- LLM (OpenRouter via the OpenAI-compatible client) 
-openai>=1.30.0
- PDF report generatio
-reportlab>=4.1.0
- 
+

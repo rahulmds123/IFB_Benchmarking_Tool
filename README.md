@@ -51,6 +51,11 @@ project-root/
 │   │   ├── App.jsx                — step-wizard state machine + top nav
 │   │   └── index.css              — Tailwind layers + light theme base
 │   └── tailwind.config.js
+|   ___vite.config.js
+    ___postcss.config.js
+    ___package.json
+    ___package-lock.json
+    
 ├── datasets/                      — sample/working BOM files (kept separate, not inside app/ or frontend/)
 ├── requirements.txt
 └── .env                           — backend secrets (never commit this)

@@ -55,6 +55,8 @@ project-root/
     ___postcss.config.js
     ___package.json
     ___package-lock.json
+    ___index.html
+    ___index.css
     
 ├── datasets/                      — sample/working BOM files (kept separate, not inside app/ or frontend/)
 ├── requirements.txt
